@@ -27,52 +27,91 @@ footer{background:var(--g);color:#fff;font-size:11.5px;text-align:center;padding
 .slide{background:var(--g);color:#fff;border-radius:16px;padding:28px 20px;min-height:200px;display:flex;flex-direction:column;justify-content:center;gap:8px;font-size:20px;font-weight:700}
 .slide small{font-weight:400;font-size:14px;opacity:.8}
 .row{display:flex;gap:10px}.row>*{flex:1}
+input.txt{width:100%;border:2px solid #0f301c22;border-radius:12px;padding:13px;font-size:16px}
+.load{text-align:center;padding:30px 10px;font-weight:700}
 </style></head><body>
 <div id="app">
 <header><button id="back" aria-label="Volver">‹</button><div><b>Yachay</b><small>Tu tutor con IA gratuito</small></div></header>
 <main id="m"></main>
-<footer>Demo interactiva · contenido curado cargado a mano · la búsqueda web y la transformación con IA son simuladas</footer>
+<footer><span id="mode">Cargando…</span></footer>
 </div>
 <script>
-// Base curada (cargada a mano). Fuente: estructura del examen UNMSM 2026-I, Área C. Pendiente de revisión docente.
-var UNI=[{id:'unmsm',n:'UNMSM (San Marcos)',on:true,car:['Ingeniería Industrial','Ingeniería de Sistemas','Ingeniería de Software','Ingeniería Civil','Ingeniería Mecatrónica']},
+// Base curada (cargada a mano). Estructura del examen UNMSM 2026-I, Área C. Pendiente de revisión docente.
+var UNI=[{id:'unmsm',n:'UNMSM (San Marcos)',on:true,car:[['industrial','Ingeniería Industrial'],['sistemas','Ingeniería de Sistemas'],['software','Ingeniería de Software'],['civil','Ingeniería Civil'],['mecatronica','Ingeniería Mecatrónica']]},
 {id:'unh',n:'UNH Huancavelica · próximamente',on:false},{id:'unat',n:'UNAT Tayacaja · próximamente',on:false},{id:'uni',n:'UNI · próximamente',on:false}];
-var PLAN=[['Semana 1','Aritmética y Álgebra','8 preguntas'],['Semana 2','Geometría y Trigonometría','7 preguntas'],['Semana 3','Física','7 preguntas'],['Semana 4','Química y Biología','12 preguntas'],['Semana 5','Lenguaje y Literatura','11 preguntas']];
-var TEMA={t:'Álgebra · Ecuaciones lineales',p:['Una ecuación lineal tiene una incógnita elevada a 1, por ejemplo 3x + 5 = 20.','Paso 1: resta 5 a ambos lados. 3x = 15.','Paso 2: divide entre 3 a ambos lados. x = 5.','Paso 3: verifica. 3 por 5 más 5 es 20. Correcto.']};
-var Q={q:'Si 3x + 5 = 20, ¿cuánto vale x?',a:['3','4','5','6','7'],c:2,e:'Resta 5: 3x = 15. Divide entre 3: x = 5. Si marcaste 4, restaste bien pero no dividiste entre 3 correctamente.'};
-var S={step:0,uni:null,car:null,fmt:null,slide:0,hist:[]};
-var m=document.getElementById('m'),back=document.getElementById('back');
-function go(s){S.hist.push(S.step);S.step=s;render()}
+var PLAN=[['Semana 1','Aritmética y Álgebra','Ecuaciones lineales'],['Semana 2','Geometría y Trigonometría','Triángulos y teorema de Pitágoras'],['Semana 3','Física','Movimiento rectilíneo uniforme'],['Semana 4','Química y Biología','La tabla periódica'],['Semana 5','Lenguaje y Literatura','Uso de la tilde']];
+// Respaldo si no hay servidor/IA: contenido de ejemplo
+var FB={txt:'1. Una ecuación lineal tiene una incógnita elevada a 1: 3x + 5 = 20.\n2. Resta 5 a ambos lados: 3x = 15.\n3. Divide entre 3: x = 5.\n4. Verifica: 3 por 5 más 5 es 20.',
+info:['Una incógnita elevada a 1','Resta 5 a ambos lados: 3x = 15','Divide entre 3: x = 5','Verifica: 3·5 + 5 = 20'],
+slides:[{t:'Ecuaciones lineales',s:'Álgebra · UNMSM'},{t:'¿Qué es?',s:'Una incógnita elevada a 1'},{t:'Resolver',s:'Resta 5, luego divide entre 3'},{t:'Verifica',s:'3·5 + 5 = 20'}],
+q:{q:'Si 3x + 5 = 20, ¿cuánto vale x?',a:['3','4','5','6','7'],c:2,e:'Resta 5: 3x = 15. Divide entre 3: x = 5.'}};
+var S={step:0,uni:null,car:null,tema:null,fmt:null,slide:0,hist:[],c:{},offline:false,online:null};
+var m=document.getElementById('m'),back=document.getElementById('back'),mode=document.getElementById('mode');
+function setMode(){mode.textContent=S.online===true?'IA conectada · el contenido lo genera Claude en vivo':S.online===false?'Modo sin conexión · contenido de ejemplo (la IA no está conectada)':'Conectando con la IA…'}
+function go(x){S.hist.push(S.step);S.step=x;render()}
 back.onclick=function(){stopAudio();S.step=S.hist.pop();render()};
 function el(h){m.innerHTML=h}
 function stopAudio(){if(window.speechSynthesis)speechSynthesis.cancel()}
-function render(){back.style.display=S.hist.length?'block':'none';
+async function ai(prompt,fmt){
+ var u=UNI[S.uni],car=u.car[S.car][0];
+ var r=await fetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages:[{role:'user',content:prompt}],ctx:{universidad:u.id,carrera:car,formato:fmt||'leer'}})});
+ if(!r.ok)throw new Error('http '+r.status);
+ var d=await r.json();if(!d.reply)throw new Error('vacío');S.online=true;setMode();return d.reply}
+function js(t){var a=t.match(/[\[{][\s\S]*[\]}]/);if(!a)throw new Error('json');return JSON.parse(a[0])}
+async function get(key,prompt,fmt,parse,fb){
+ var k=S.tema+'|'+key;if(S.c[k])return S.c[k];
+ try{var t=await ai(prompt,fmt);S.c[k]=parse?parse(t):t}catch(e){S.online=false;setMode();S.c[k]=fb}
+ return S.c[k]}
+function loading(t){el('<div class="load">⏳ '+t+'</div>')}
+function render(){back.style.display=S.hist.length?'block':'none';setMode();
  if(S.step==0){
   el('<h2>¿Dónde quieres ingresar?</h2>'+UNI.map(function(u,i){return '<button class="opt'+(S.uni===i?' on':'')+'" '+(u.on?'':'disabled')+' onclick="S.uni='+i+';S.car=null;go(1)">'+u.n+'</button>'}).join('')+'<p class="src">No subes ningún archivo: el temario ya está en nuestra base.</p>')}
- if(S.step==1){var u=UNI[S.uni];
-  el('<h2>¿Qué carrera?</h2><div class="card">'+u.n+' ✓</div>'+u.car.map(function(c,i){return '<button class="opt" onclick="S.car='+i+';go(2)">'+c+'</button>'}).join(''))}
- if(S.step==2){var u=UNI[S.uni];
-  el('<h2>Tu plan de estudio</h2><div class="card"><b>'+u.n+'</b><br>'+u.car[S.car]+'</div>'+PLAN.map(function(p,i){return '<button class="opt" onclick="go(3)"><span style="opacity:.6;font-size:12px">'+p[0]+' · '+p[2]+'</span><br>'+p[1]+'</button>'}).join('')+'<p class="src">Fuente: estructura oficial del examen (Área C), cargada por el equipo. Toca una semana para abrir un tema de ejemplo.</p>')}
- if(S.step==3){
-  el('<h2>'+TEMA.t+'</h2>'+TEMA.p.map(function(x){return '<div class="card">'+x+'</div>'}).join('')+'<p class="src">Fuente: base curada del equipo (pendiente de revisión docente).</p><button class="btn" onclick="go(4)">Elegir cómo estudiarlo</button>')}
- if(S.step==4){
-  el('<h2>¿Cómo quieres estudiarlo?</h2><div class="grid"><button class="opt" onclick="S.fmt=\'video\';go(5)">🎬<br>Video</button><button class="opt" onclick="S.fmt=\'info\';go(5)">📊<br>Infografía</button><button class="opt" onclick="S.fmt=\'pres\';S.slide=0;go(5)">🖥️<br>Presentación</button><button class="opt" onclick="S.fmt=\'audio\';go(5)">🎧<br>Audio</button></div><p class="src" style="text-align:center">La IA transforma el mismo tema al formato elegido.</p>')}
- if(S.step==5){
-  if(S.fmt=='audio'){
-   el('<h2>🎧 Audio</h2><div class="card">Escuchando: '+TEMA.t+'</div><button class="btn" id="pl">▶ Escuchar</button><button class="btn sec" onclick="stopAudio()">■ Parar</button><p class="src">Voz del navegador (funciona de verdad en este demo).</p><button class="btn sec" onclick="go(6)">Practicar este tema</button>');
-   document.getElementById('pl').onclick=function(){stopAudio();if(!window.speechSynthesis){alert('Tu navegador no tiene voz.');return}
-    var u=new SpeechSynthesisUtterance(TEMA.t+'. '+TEMA.p.join(' '));u.lang='es-PE';u.rate=.95;speechSynthesis.speak(u)}}
-  if(S.fmt=='info'){
-   el('<h2>📊 Infografía</h2><div class="info"><div class="st"><div class="n">1</div>Una incógnita elevada a 1: 3x + 5 = 20</div><div class="st"><div class="n">2</div>Resta 5 a ambos lados: 3x = 15</div><div class="st"><div class="n">3</div>Divide entre 3: x = 5</div><div class="st"><div class="n">✓</div>Verifica: 3·5 + 5 = 20</div></div><p class="src">Transformación de demostración generada desde el mismo texto curado.</p><button class="btn sec" onclick="go(6)">Practicar este tema</button>')}
-  if(S.fmt=='pres'){var sl=[['Ecuaciones lineales','Álgebra · UNMSM'],['¿Qué es?','Una incógnita elevada a 1. Ej.: 3x + 5 = 20'],['Resolver','Resta 5 → 3x = 15\nDivide entre 3 → x = 5'],['Verifica','3·5 + 5 = 20 ✓']];
-   var s=sl[S.slide];el('<h2>🖥️ Presentación</h2><div class="slide">'+s[0]+'<small>'+s[1].replace(/\n/g,'<br>')+'</small></div><div class="row"><button class="btn sec" onclick="S.slide=Math.max(0,S.slide-1);render()">‹</button><div class="card" style="text-align:center">'+(S.slide+1)+' / '+sl.length+'</div><button class="btn sec" onclick="S.slide=Math.min('+(sl.length-1)+',S.slide+1);render()">›</button></div><button class="btn sec" onclick="go(6)">Practicar este tema</button>')}
-  if(S.fmt=='video'){
-   el('<h2>🎬 Video</h2><div class="slide" style="text-align:center">⏳<small>Video generado por IA: simulado en esta demo. Es la parte que construiríamos con financiamiento.</small></div><button class="btn sec" onclick="S.hist.pop();S.step=4;render()">Elegir otro formato</button>')}}
- if(S.step==6){
-  el('<h2>Practica y corrige</h2><div class="card"><b>'+Q.q+'</b></div>'+Q.a.map(function(a,i){return '<button class="opt" id="q'+i+'" onclick="ans('+i+')">'+'ABCDE'[i]+') '+a+'</button>'}).join('')+'<div id="fb"></div>')}
+ else if(S.step==1){var u=UNI[S.uni];
+  el('<h2>¿Qué carrera?</h2><div class="card">'+u.n+' ✓</div>'+u.car.map(function(c,i){return '<button class="opt" onclick="S.car='+i+';go(2)">'+c[1]+'</button>'}).join(''))}
+ else if(S.step==2){var u=UNI[S.uni];
+  el('<h2>Tu plan de estudio</h2><div class="card"><b>'+u.n+'</b><br>'+u.car[S.car][1]+'</div>'+PLAN.map(function(p,i){return '<button class="opt" onclick="openTema('+i+')"><span style="opacity:.6;font-size:12px">'+p[0]+' · '+p[1]+'</span><br>'+p[2]+'</button>'}).join('')+'<label class="src">¿Otro tema del examen? Escríbelo:</label><div class="row"><input class="txt" id="otro" placeholder="Ej.: Porcentajes"><button class="btn" style="flex:0 0 90px" onclick="otroTema()">Ir</button></div><p class="src">Plan: estructura oficial del examen, cargada por el equipo.</p>')}
+ else if(S.step==3){tema()}
+ else if(S.step==4){
+  el('<h2>¿Cómo quieres estudiarlo?</h2><div class="card">'+S.tema+'</div><div class="grid"><button class="opt" onclick="S.fmt=\'video\';go(5)">🎬<br>Video</button><button class="opt" onclick="S.fmt=\'info\';go(5)">📊<br>Infografía</button><button class="opt" onclick="S.fmt=\'pres\';S.slide=0;go(5)">🖥️<br>Presentación</button><button class="opt" onclick="S.fmt=\'audio\';go(5)">🎧<br>Audio</button></div><p class="src" style="text-align:center">La IA transforma el mismo tema al formato elegido.</p>')}
+ else if(S.step==5){formato()}
+ else if(S.step==6){practica()}
 }
-function ans(i){var ok=i==Q.c;for(var k=0;k<5;k++){var b=document.getElementById('q'+k);b.disabled=true;if(k==Q.c)b.classList.add('ok');}
+function openTema(i){S.tema=PLAN[i][2];go(3)}
+function otroTema(){var v=document.getElementById('otro').value.trim();if(!v)return;S.tema=v.slice(0,80);go(3)}
+async function tema(){
+ loading('La IA está preparando «'+S.tema+'»…');
+ var t=await get('txt','Explica el tema "'+S.tema+'" para el examen de admisión: 4 pasos cortos numerados y un ejemplo con números. Máximo 8 líneas.','leer',null,FB.txt);
+ if(S.step!=3)return;
+ el('<h2>'+S.tema+'</h2><div class="card" style="white-space:pre-wrap">'+esc(t)+'</div><p class="src">'+(S.online?'Generado por IA a partir de nuestra base curada. Sin revisión docente aún.':'Contenido de ejemplo (modo sin conexión).')+'</p><button class="btn" onclick="go(4)">Elegir cómo estudiarlo</button>')}
+function esc(x){return String(x).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+async function formato(){
+ var f=S.fmt;
+ if(f=='video'){el('<h2>🎬 Video</h2><div class="slide" style="text-align:center">⏳<small>Video generado por IA: simulado. Es la parte que construiríamos con financiamiento.</small></div><button class="btn sec" onclick="S.hist.pop();S.step=4;render()">Elegir otro formato</button>');return}
+ if(f=='audio'){
+  loading('Preparando el audio…');var t=await get('txt','Explica el tema "'+S.tema+'" para el examen de admisión: 4 pasos cortos numerados y un ejemplo con números. Máximo 8 líneas.','leer',null,FB.txt);
+  if(S.step!=5)return;
+  el('<h2>🎧 Audio</h2><div class="card">'+S.tema+'</div><button class="btn" id="pl">▶ Escuchar</button><button class="btn sec" onclick="stopAudio()">■ Parar</button><p class="src">Voz del navegador (real).</p><button class="btn sec" onclick="go(6)">Practicar este tema</button>');
+  document.getElementById('pl').onclick=function(){stopAudio();if(!window.speechSynthesis){alert('Tu navegador no tiene voz.');return}
+   var u=new SpeechSynthesisUtterance(S.tema+'. '+t.replace(/\n/g,' '));u.lang='es-PE';u.rate=.95;speechSynthesis.speak(u)};return}
+ if(f=='info'){
+  loading('La IA está armando la infografía…');
+  var a=await get('info','Con el tema "'+S.tema+'" responde SOLO un arreglo JSON de 4 frases cortas (máximo 12 palabras cada una), sin texto extra.','leer',function(t){var x=js(t);if(!Array.isArray(x)||x.length<2)throw 1;return x.slice(0,4).map(String)},FB.info);
+  if(S.step!=5)return;
+  el('<h2>📊 Infografía</h2><div class="info">'+a.map(function(x,i){return '<div class="st"><div class="n">'+(i+1)+'</div>'+esc(x)+'</div>'}).join('')+'</div><button class="btn sec" onclick="go(6)">Practicar este tema</button>');return}
+ if(f=='pres'){
+  loading('La IA está armando la presentación…');
+  var sl=await get('pres','Responde SOLO JSON: un arreglo de 4 objetos {"t":"título corto","s":"texto corto"} para 4 diapositivas sobre "'+S.tema+'" (examen de admisión).','leer',function(t){var x=js(t);if(!Array.isArray(x)||x.length<2)throw 1;return x.slice(0,4).map(function(o){return{t:String(o.t),s:String(o.s)}})},FB.slides);
+  if(S.step!=5)return;
+  var s=sl[S.slide];
+  el('<h2>🖥️ Presentación</h2><div class="slide">'+esc(s.t)+'<small>'+esc(s.s)+'</small></div><div class="row"><button class="btn sec" onclick="S.slide=Math.max(0,S.slide-1);formato()">‹</button><div class="card" style="text-align:center">'+(S.slide+1)+' / '+sl.length+'</div><button class="btn sec" onclick="S.slide=Math.min('+(sl.length-1)+',S.slide+1);formato()">›</button></div><button class="btn sec" onclick="go(6)">Practicar este tema</button>')}
+}
+async function practica(){
+ loading('La IA está creando tu ejercicio…');
+ var q=await get('q','Responde SOLO JSON: {"q":"una pregunta tipo examen de admisión sobre '+S.tema+'","a":["texto A","texto B","texto C","texto D","texto E"],"c":índice numérico 0-4 de la correcta,"e":"explicación del procedimiento en 2 frases"}','practicar',function(t){var x=js(t);if(!x.q||!Array.isArray(x.a)||x.a.length!=5||typeof x.c!='number')throw 1;return x},FB.q);
+ if(S.step!=6)return;S.curq=q;
+ el('<h2>Practica y corrige</h2><div class="card"><b>'+esc(q.q)+'</b></div>'+q.a.map(function(a,i){return '<button class="opt" id="q'+i+'" onclick="ans('+i+')">'+'ABCDE'[i]+') '+esc(a)+'</button>'}).join('')+'<div id="fb"></div>')}
+function ans(i){var q=S.curq,ok=i==q.c;for(var k=0;k<5;k++){var b=document.getElementById('q'+k);b.disabled=true;if(k==q.c)b.classList.add('ok')}
  if(!ok)document.getElementById('q'+i).classList.add('no');
- document.getElementById('fb').innerHTML='<div class="card"><b>'+(ok?'¡Correcto!':'Casi.')+'</b> '+Q.e+'</div><button class="btn" onclick="S.hist=[];S.step=2;render()">Volver a mi plan</button>'}
+ document.getElementById('fb').innerHTML='<div class="card"><b>'+(ok?'¡Correcto!':'Casi.')+'</b> '+esc(q.e)+'</div><button class="btn" onclick="S.hist=[];S.step=2;render()">Volver a mi plan</button>'}
 render();
 </script></body></html>
