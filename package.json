@@ -1,0 +1,11 @@
+{
+  "name": "yachat",
+  "version": "0.1.0",
+  "description": "Yachat: tutor con IA para postulantes de provincia (prototipo Sueñ-IA en Grande 2026)",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "engines": { "node": ">=18" }
+}
