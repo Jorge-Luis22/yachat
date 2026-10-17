@@ -37,4 +37,4 @@ http.createServer(async (req, res) => {
     res.writeHead(200, { 'content-type': TYPES[path.extname(full)] || 'application/octet-stream' });
     res.end(data);
   });
-}).listen(PORT, () => console.log('Yachat en http://localhost:' + PORT));
+}).listen(PORT, () => console.log('Yachay en http://localhost:' + PORT));

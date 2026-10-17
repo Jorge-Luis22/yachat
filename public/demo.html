@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Yachay · demo interactiva</title>
+<style>
+:root{--g:#0f301c;--p:#dd7979;--c:#f7efe3;--ok:#2e8b57;--no:#c0392b}
+*{box-sizing:border-box;margin:0;font-family:system-ui,Segoe UI,Arial,sans-serif}
+body{background:#e9e2d6;min-height:100vh;display:flex;justify-content:center;align-items:center;padding:16px}
+#app{width:100%;max-width:420px;height:min(860px,96vh);background:var(--c);border-radius:30px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 50px #0f301c33;position:relative}
+header{background:var(--g);color:#fff;padding:22px 20px 14px;display:flex;align-items:center;gap:10px}
+header b{font-size:22px}header small{opacity:.75;font-size:12px;display:block;font-weight:400}
+#back{background:none;border:0;color:#fff;font-size:22px;cursor:pointer;display:none}
+main{flex:1;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:12px;color:var(--g)}
+h2{font-size:23px;line-height:1.2}
+.opt,.sel{background:#fff;border:2px solid #0f301c18;border-radius:14px;padding:15px;font-size:17px;font-weight:600;cursor:pointer;text-align:left;width:100%;color:var(--g)}
+.opt:hover{border-color:var(--p)}.opt.on{border-color:var(--p);background:#dd797914}
+.opt[disabled]{opacity:.45;cursor:not-allowed}
+.btn{background:var(--p);color:#fff;border:0;border-radius:14px;padding:16px;font-size:17px;font-weight:800;cursor:pointer;width:100%}
+.btn.sec{background:#fff;color:var(--g);border:2px solid #0f301c22}
+.card{background:#fff;border-radius:14px;padding:14px;font-size:15px;line-height:1.55}
+.src{font-size:12px;opacity:.7}
+.bar{height:9px;border-radius:5px;background:#0f301c15;overflow:hidden}.bar i{display:block;height:100%;background:var(--g)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid .opt{text-align:center;padding:24px 8px}
+.ok{border-color:var(--ok)!important;background:#2e8b5718!important}.no{border-color:var(--no)!important;background:#c0392b14!important}
+footer{background:var(--g);color:#fff;font-size:11.5px;text-align:center;padding:8px 10px;opacity:.95}
+.info{display:flex;flex-direction:column;gap:10px}.info .st{background:var(--g);color:#fff;border-radius:14px;padding:14px;display:flex;gap:12px;align-items:center}
+.info .n{background:var(--p);border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-weight:800;flex:none}
+.slide{background:var(--g);color:#fff;border-radius:16px;padding:28px 20px;min-height:200px;display:flex;flex-direction:column;justify-content:center;gap:8px;font-size:20px;font-weight:700}
+.slide small{font-weight:400;font-size:14px;opacity:.8}
+.row{display:flex;gap:10px}.row>*{flex:1}
+</style></head><body>
+<div id="app">
+<header><button id="back" aria-label="Volver">‹</button><div><b>Yachay</b><small>Tu tutor con IA gratuito</small></div></header>
+<main id="m"></main>
+<footer>Demo interactiva · contenido curado cargado a mano · la búsqueda web y la transformación con IA son simuladas</footer>
+</div>
+<script>
+// Base curada (cargada a mano). Fuente: estructura del examen UNMSM 2026-I, Área C. Pendiente de revisión docente.
+var UNI=[{id:'unmsm',n:'UNMSM (San Marcos)',on:true,car:['Ingeniería Industrial','Ingeniería de Sistemas','Ingeniería de Software','Ingeniería Civil','Ingeniería Mecatrónica']},
+{id:'unh',n:'UNH Huancavelica · próximamente',on:false},{id:'unat',n:'UNAT Tayacaja · próximamente',on:false},{id:'uni',n:'UNI · próximamente',on:false}];
+var PLAN=[['Semana 1','Aritmética y Álgebra','8 preguntas'],['Semana 2','Geometría y Trigonometría','7 preguntas'],['Semana 3','Física','7 preguntas'],['Semana 4','Química y Biología','12 preguntas'],['Semana 5','Lenguaje y Literatura','11 preguntas']];
+var TEMA={t:'Álgebra · Ecuaciones lineales',p:['Una ecuación lineal tiene una incógnita elevada a 1, por ejemplo 3x + 5 = 20.','Paso 1: resta 5 a ambos lados. 3x = 15.','Paso 2: divide entre 3 a ambos lados. x = 5.','Paso 3: verifica. 3 por 5 más 5 es 20. Correcto.']};
+var Q={q:'Si 3x + 5 = 20, ¿cuánto vale x?',a:['3','4','5','6','7'],c:2,e:'Resta 5: 3x = 15. Divide entre 3: x = 5. Si marcaste 4, restaste bien pero no dividiste entre 3 correctamente.'};
+var S={step:0,uni:null,car:null,fmt:null,slide:0,hist:[]};
+var m=document.getElementById('m'),back=document.getElementById('back');
+function go(s){S.hist.push(S.step);S.step=s;render()}
+back.onclick=function(){stopAudio();S.step=S.hist.pop();render()};
+function el(h){m.innerHTML=h}
+function stopAudio(){if(window.speechSynthesis)speechSynthesis.cancel()}
+function render(){back.style.display=S.hist.length?'block':'none';
+ if(S.step==0){
+  el('<h2>¿Dónde quieres ingresar?</h2>'+UNI.map(function(u,i){return '<button class="opt'+(S.uni===i?' on':'')+'" '+(u.on?'':'disabled')+' onclick="S.uni='+i+';S.car=null;go(1)">'+u.n+'</button>'}).join('')+'<p class="src">No subes ningún archivo: el temario ya está en nuestra base.</p>')}
+ if(S.step==1){var u=UNI[S.uni];
+  el('<h2>¿Qué carrera?</h2><div class="card">'+u.n+' ✓</div>'+u.car.map(function(c,i){return '<button class="opt" onclick="S.car='+i+';go(2)">'+c+'</button>'}).join(''))}
+ if(S.step==2){var u=UNI[S.uni];
+  el('<h2>Tu plan de estudio</h2><div class="card"><b>'+u.n+'</b><br>'+u.car[S.car]+'</div>'+PLAN.map(function(p,i){return '<button class="opt" onclick="go(3)"><span style="opacity:.6;font-size:12px">'+p[0]+' · '+p[2]+'</span><br>'+p[1]+'</button>'}).join('')+'<p class="src">Fuente: estructura oficial del examen (Área C), cargada por el equipo. Toca una semana para abrir un tema de ejemplo.</p>')}
+ if(S.step==3){
+  el('<h2>'+TEMA.t+'</h2>'+TEMA.p.map(function(x){return '<div class="card">'+x+'</div>'}).join('')+'<p class="src">Fuente: base curada del equipo (pendiente de revisión docente).</p><button class="btn" onclick="go(4)">Elegir cómo estudiarlo</button>')}
+ if(S.step==4){
+  el('<h2>¿Cómo quieres estudiarlo?</h2><div class="grid"><button class="opt" onclick="S.fmt=\'video\';go(5)">🎬<br>Video</button><button class="opt" onclick="S.fmt=\'info\';go(5)">📊<br>Infografía</button><button class="opt" onclick="S.fmt=\'pres\';S.slide=0;go(5)">🖥️<br>Presentación</button><button class="opt" onclick="S.fmt=\'audio\';go(5)">🎧<br>Audio</button></div><p class="src" style="text-align:center">La IA transforma el mismo tema al formato elegido.</p>')}
+ if(S.step==5){
+  if(S.fmt=='audio'){
+   el('<h2>🎧 Audio</h2><div class="card">Escuchando: '+TEMA.t+'</div><button class="btn" id="pl">▶ Escuchar</button><button class="btn sec" onclick="stopAudio()">■ Parar</button><p class="src">Voz del navegador (funciona de verdad en este demo).</p><button class="btn sec" onclick="go(6)">Practicar este tema</button>');
+   document.getElementById('pl').onclick=function(){stopAudio();if(!window.speechSynthesis){alert('Tu navegador no tiene voz.');return}
+    var u=new SpeechSynthesisUtterance(TEMA.t+'. '+TEMA.p.join(' '));u.lang='es-PE';u.rate=.95;speechSynthesis.speak(u)}}
+  if(S.fmt=='info'){
+   el('<h2>📊 Infografía</h2><div class="info"><div class="st"><div class="n">1</div>Una incógnita elevada a 1: 3x + 5 = 20</div><div class="st"><div class="n">2</div>Resta 5 a ambos lados: 3x = 15</div><div class="st"><div class="n">3</div>Divide entre 3: x = 5</div><div class="st"><div class="n">✓</div>Verifica: 3·5 + 5 = 20</div></div><p class="src">Transformación de demostración generada desde el mismo texto curado.</p><button class="btn sec" onclick="go(6)">Practicar este tema</button>')}
+  if(S.fmt=='pres'){var sl=[['Ecuaciones lineales','Álgebra · UNMSM'],['¿Qué es?','Una incógnita elevada a 1. Ej.: 3x + 5 = 20'],['Resolver','Resta 5 → 3x = 15\nDivide entre 3 → x = 5'],['Verifica','3·5 + 5 = 20 ✓']];
+   var s=sl[S.slide];el('<h2>🖥️ Presentación</h2><div class="slide">'+s[0]+'<small>'+s[1].replace(/\n/g,'<br>')+'</small></div><div class="row"><button class="btn sec" onclick="S.slide=Math.max(0,S.slide-1);render()">‹</button><div class="card" style="text-align:center">'+(S.slide+1)+' / '+sl.length+'</div><button class="btn sec" onclick="S.slide=Math.min('+(sl.length-1)+',S.slide+1);render()">›</button></div><button class="btn sec" onclick="go(6)">Practicar este tema</button>')}
+  if(S.fmt=='video'){
+   el('<h2>🎬 Video</h2><div class="slide" style="text-align:center">⏳<small>Video generado por IA: simulado en esta demo. Es la parte que construiríamos con financiamiento.</small></div><button class="btn sec" onclick="S.hist.pop();S.step=4;render()">Elegir otro formato</button>')}}
+ if(S.step==6){
+  el('<h2>Practica y corrige</h2><div class="card"><b>'+Q.q+'</b></div>'+Q.a.map(function(a,i){return '<button class="opt" id="q'+i+'" onclick="ans('+i+')">'+'ABCDE'[i]+') '+a+'</button>'}).join('')+'<div id="fb"></div>')}
+}
+function ans(i){var ok=i==Q.c;for(var k=0;k<5;k++){var b=document.getElementById('q'+k);b.disabled=true;if(k==Q.c)b.classList.add('ok');}
+ if(!ok)document.getElementById('q'+i).classList.add('no');
+ document.getElementById('fb').innerHTML='<div class="card"><b>'+(ok?'¡Correcto!':'Casi.')+'</b> '+Q.e+'</div><button class="btn" onclick="S.hist=[];S.step=2;render()">Volver a mi plan</button>'}
+render();
+</script></body></html>

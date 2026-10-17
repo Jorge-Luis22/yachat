@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Yachat</title>
+<title>Yachay</title>
 <style>
 :root{--bg:#f3f5ee;--surface:#fff;--line:#d3dac4;--fg:#1f2b17;--muted:#5b6850;--green:#2f4d1f;--on-green:#fff;--user:#2f4d1f;--yellow:#fff2c4;--pink:#e0489a}
 @media (prefers-color-scheme:dark){:root{--bg:#121a0e;--surface:#1b2615;--line:#34452c;--fg:#eaf0df;--muted:#9fb08f;--green:#9ccf72;--on-green:#10200a;--user:#9ccf72;--yellow:#3a3315;--pink:#f070b4}}
@@ -38,7 +38,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--pink);outline-o
 </head>
 <body>
 <header>
-  <h1>Yachat</h1>
+  <h1>Yachay</h1>
   <p>Tu tutor para el examen de admisión</p>
 </header>
 <div class="filtros">
@@ -84,7 +84,7 @@ function hablar(txt){
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function fmt(s){return esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>')}
 function add(cls,html){var d=document.createElement('div');d.className='m '+cls;d.innerHTML=html;log.appendChild(d);log.scrollTop=log.scrollHeight;return d}
-add('bot','¡Hola! Soy Yachat. Te ayudo a prepararte para el examen de San Marcos, sin academia. Elige una opción de abajo o escríbeme tu duda.');
+add('bot','¡Hola! Soy Yachay. Te ayudo a prepararte para el examen de San Marcos, sin academia. Elige una opción de abajo o escríbeme tu duda.');
 async function ask(text){
   if(!text.trim())return;
   add('me',esc(text));history.push({role:'user',content:text});

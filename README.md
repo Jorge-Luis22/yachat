@@ -1,4 +1,4 @@
-# Yachat
+# Yachay
 
 Tutor conversacional con IA para postulantes de provincia que se preparan para el examen de admisión de San Marcos sin poder pagar una academia. Prototipo para **Sueñ-IA en Grande 2026** · Isla 01 Educación e Inclusión.
 
@@ -19,6 +19,10 @@ Recibe las respuestas y dudas del estudiante. Diagnostica su nivel, arma un plan
 | | Otras 4 áreas, límites de uso por estudiante, medición de progreso |
 
 El contenido de las preguntas lo genera la IA y no está verificado por docentes. Por eso la interfaz lo declara como demo.
+
+## Dos versiones
+- `/` (public/index.html): tutor con IA real. Necesita `ANTHROPIC_API_KEY` en el servidor.
+- `/demo.html` (public/demo.html): recorrido interactivo con contenido curado a mano. Funciona sin clave ni internet. La búsqueda web y la transformación con IA son simuladas.
 
 ## Ejecutar en local (VS Code, Antigravity o cualquier editor)
 Requiere Node 18 o superior. No hay dependencias que instalar.
