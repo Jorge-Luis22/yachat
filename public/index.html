@@ -25,19 +25,36 @@ form{display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bott
 input{flex:1;min-width:0;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
 form button{font:inherit;font-weight:600;padding:0 16px;border-radius:10px;border:0;background:var(--green);color:var(--on-green);cursor:pointer}
 button:disabled{opacity:.5}
+.filtros{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--surface)}
+.filtros label{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted);min-width:0}
+.filtros select{font:inherit;font-size:14px;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);min-width:0}
+.fmt{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}
+.fmt button{font:inherit;font-size:14px;padding:6px 12px;border-radius:99px;border:1px solid var(--green);background:var(--surface);color:var(--fg);cursor:pointer}
+.fmt button[aria-pressed=true]{background:var(--green);color:var(--on-green)}
+.say{margin-top:6px;font:inherit;font-size:12px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+@media (max-width:420px){.filtros{grid-template-columns:1fr}}
 button:focus-visible,input:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
 </style>
 </head>
 <body>
 <header>
   <h1>Yachat</h1>
-  <p>Tu tutor para ingresar a San Marcos · Área Ingeniería</p>
+  <p>Tu tutor para el examen de admisión</p>
 </header>
+<div class="filtros">
+  <label>Universidad<select id="uni" aria-label="Universidad"></select></label>
+  <label>Carrera<select id="car" aria-label="Carrera"></select></label>
+  <div class="fmt" id="fmt" role="group" aria-label="Cómo quieres aprender">
+    <button type="button" data-f="leer" aria-pressed="true">Leer</button>
+    <button type="button" data-f="escuchar" aria-pressed="false">Escuchar</button>
+    <button type="button" data-f="practicar" aria-pressed="false">Practicar</button>
+  </div>
+</div>
 <div class="demo">Demo · prototipo sin revisión docente. No compartas datos personales.</div>
 <div id="log" aria-live="polite"></div>
 <div class="chips" id="chips">
   <button type="button" data-t="Quiero hacer el diagnóstico de mi nivel.">Diagnóstico</button>
-  <button type="button" data-t="Arma mi plan de estudio semanal para Ingeniería.">Mi plan de estudio</button>
+  <button type="button" data-t="Arma mi plan de estudio semanal para mi carrera.">Crear mi plan</button>
   <button type="button" data-t="Dame un ejercicio de Física tipo examen.">Practicar Física</button>
   <button type="button" data-t="Dame un ejercicio de Matemática tipo examen.">Practicar Matemática</button>
 </div>
@@ -48,6 +65,22 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--pink);outline-o
 <script>
 var log=document.getElementById('log'),input=document.getElementById('in'),send=document.getElementById('send');
 var history=[];
+var CAT=[
+ {id:'unmsm',n:'UNMSM (San Marcos)',on:true,c:[['industrial','Ingeniería Industrial'],['sistemas','Ingeniería de Sistemas'],['software','Ingeniería de Software'],['civil','Ingeniería Civil'],['mecatronica','Ingeniería Mecatrónica']]},
+ {id:'unh',n:'U. Nacional de Huancavelica (próximamente)',on:false,c:[]},
+ {id:'unat',n:'UNAT Tayacaja (próximamente)',on:false,c:[]},
+ {id:'uni',n:'UNI (próximamente)',on:false,c:[]}
+];
+var uniEl=document.getElementById('uni'),carEl=document.getElementById('car'),formato='leer';
+CAT.forEach(function(u){var o=document.createElement('option');o.value=u.id;o.textContent=u.n;o.disabled=!u.on;uniEl.appendChild(o)});
+function fillCar(){carEl.innerHTML='';var u=CAT.filter(function(x){return x.id===uniEl.value})[0];(u?u.c:[]).forEach(function(c){var o=document.createElement('option');o.value=c[0];o.textContent=c[1];carEl.appendChild(o)})}
+uniEl.addEventListener('change',fillCar);fillCar();
+document.getElementById('fmt').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;formato=b.dataset.f;this.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false')})});
+function hablar(txt){
+  if(!('speechSynthesis' in window)){return}
+  window.speechSynthesis.cancel();
+  var u=new SpeechSynthesisUtterance(txt.replace(/\*\*/g,''));u.lang='es-PE';window.speechSynthesis.speak(u);
+}
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function fmt(s){return esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>')}
 function add(cls,html){var d=document.createElement('div');d.className='m '+cls;d.innerHTML=html;log.appendChild(d);log.scrollTop=log.scrollHeight;return d}
@@ -58,11 +91,12 @@ async function ask(text){
   input.value='';send.disabled=true;
   var wait=add('bot','Pensando…');
   try{
-    var r=await fetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages:history})});
+    var r=await fetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages:history,ctx:{universidad:uniEl.value,carrera:carEl.value,formato:formato}})});
     var j=await r.json();
     wait.remove();
     if(!r.ok){history.pop();add('err',esc(j.error||'No se pudo responder.'));}
-    else{history.push({role:'assistant',content:j.reply});add('bot',fmt(j.reply));}
+    else{history.push({role:'assistant',content:j.reply});var d=add('bot',fmt(j.reply));
+    if(formato==='escuchar'&&'speechSynthesis' in window){var sb=document.createElement('button');sb.type='button';sb.className='say';sb.textContent='Escuchar de nuevo';sb.onclick=function(){hablar(j.reply)};d.appendChild(document.createElement('br'));d.appendChild(sb);hablar(j.reply)}}
   }catch(e){wait.remove();history.pop();add('err','Sin conexión. Revisa tu internet e intenta otra vez.')}
   send.disabled=false;input.focus();
 }

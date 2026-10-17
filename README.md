@@ -11,8 +11,10 @@ Recibe las respuestas y dudas del estudiante. Diagnostica su nivel, arma un plan
 ## Funcional vs. simulado
 | Funcional hoy | Simulado o pendiente |
 |---|---|
-| Chat con diagnóstico de 5 preguntas, plan semanal y práctica con corrección (Área C, Ingeniería) | Revisión docente del contenido (pendiente) |
+| Filtros por universidad, carrera y formato (leer, escuchar con voz del navegador, practicar). Chat con diagnóstico, plan semanal y práctica con corrección (UNMSM, Área C) | Revisión docente del contenido (pendiente) |
 | Estructura del examen 2026-I por curso | Canal WhatsApp/Telegram y modo offline (ruta futura) |
+| | Más universidades y búsqueda automática del temario en la fuente oficial (hoy el catálogo se carga a mano; ruta futura) |
+| | Videos e infografías (ruta futura) |
 | | Búsqueda de fechas, vacantes y becas (ruta futura) |
 | | Otras 4 áreas, límites de uso por estudiante, medición de progreso |
 
